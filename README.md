@@ -5,7 +5,7 @@ A simple web application for displaying historical Citibike information.
 
 Requires: 
 
-nodejs and (express)[expressjs.com] 
+[nodejs](nodejs.org) and [express](expressjs.com)
 
 Usage:
 
