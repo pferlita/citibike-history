@@ -23,7 +23,7 @@ if ('development' == app.get('env')) {
 
 data.initialize();
 
-setInterval(data.initialize, 60 * 1000);
+setInterval(data.initialize, 1000 * 60);
 
 var stations = function(req, res) {
   res.send(data.stations);

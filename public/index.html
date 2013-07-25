@@ -3,11 +3,13 @@
 <head>
 <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
 <title>Citibike over time</title>
-<link rel="stylesheet" href="/smoothness/jquery-ui.css" />
-<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+<link rel="stylesheet" href="./smoothness/jquery-ui.css" />
+<script type="text/javascript"
+  src="http://maps.googleapis.com/maps/api/js?key=AIzaSyC-MQ2xCO9A_smT0YD1mQAYLX6Zn5XOL5w&v=3.exp&sensor=false"
+></script>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
-<script type="text/javascript" src="color.min.js"></script>
+<script type="text/javascript" src="./color.min.js"></script>
 
 <style>
 body {
@@ -30,7 +32,7 @@ body {
 }
 
 #time-slider {
-  width: 90%;
+	width: 90%;
 }
 
 #map-canvas {
@@ -39,22 +41,24 @@ body {
 }
 
 #map-table {
-  height: 100%;
-  width: 70%;
-  padding-right: 10px;
+	height: 100%;
+	width: 70%;
+	padding-right: 10px;
 	float: left;
 }
 
 #verbiage {
-  padding-left: 50px;
+	padding-left: 50px;
 }
-
 </style>
 
 <script type="text/javascript">
-  var current = {};
+  var current = {
+    'station_id' : -1,
+    'offset' : 0,
+  };
   var circles = {};
-  
+
   var infowindow = new google.maps.InfoWindow({
     content : '<h2>Hello!</h2>'
   });
@@ -87,16 +91,21 @@ body {
     return Color.hsl(hue, 0.8, 0.5).toString();
   }
 
-  var handleClick = function(station_id) {
-    var center = circles[station_id].getPosition();
+  var getInfoWindowContent = function(id) {
     var content = $('<div></div>')
-    content.append('Station Id: ' + station_id);
-    content.append('<br/>Address: ' + stations[station_id].stationName);
-    content.append('<br/>Docks available: ' + current.docks[station_id][current.offset]);
-    content.append('<br/>Bikes available: ' + current.bikes[station_id][current.offset]);
-    content.append('<br/>Total docks: ' + stations[station_id].totalDocks);
+    content.append('Station Id: ' + id);
+    content.append('<br/>Address: ' + stations[id].stationName);
+    content.append('<br/>Docks available: ' + all_usage.docks[id][current.offset]);
+    content.append('<br/>Bikes available: ' + all_usage.bikes[id][current.offset]);
+    content.append('<br/>Total docks: ' + stations[id].totalDocks);
+    return content.html();
+  }
+
+  var handleClick = function() {
+    id = current.station_id;
+    var center = circles[id].getPosition();
     infowindow.setPosition(center);
-    infowindow.setContent(content.html());
+    infowindow.setContent(getInfoWindowContent(id));
     // infowindow.setContent(station_id);
     infowindow.open(map);
   }
@@ -106,47 +115,47 @@ body {
     var bikes = all_usage.bikes;
     var docks = all_usage.docks;
 
-    current = {
-        'offset' : offset,
-        'time' : time,
-        'bikes' : bikes,
-        'docks' : docks
-    };
-    
+    current.offset = offset;
+
+    if (current.station_id != -1) {
+      infowindow.setContent(getInfoWindowContent(current.station_id));
+    }
+
     $('#current-time').text(time);
-    for (var id in stations) {
+    for ( var id in stations) {
       var station = stations[id];
-      if (typeof (station) == 'undefined' || 
-          typeof(bikes[id]) == 'undefined' ||
-          typeof(docks[id]) == 'undefined') {
+      if (typeof (station) == 'undefined' || typeof (bikes[id]) == 'undefined' || typeof (docks[id]) == 'undefined') {
         console.log('Missing: ' + id);
         console.log(station);
         console.log(bikes[id]);
         console.log(docks[id]);
         continue;
       }
-      
+
       // console.log(bikes[id]);
       // console.log(docks[id]);
-      
+
       var icon = {
-        path: google.maps.SymbolPath.CIRCLE,
+        path : google.maps.SymbolPath.CIRCLE,
         strokeColor : '#FFFFFF',
         strokeOpacity : 0.8,
         strokeWeight : 2,
         fillColor : usageToColor(station, bikes[id][offset], docks[id][offset]),
         fillOpacity : 0.5,
-        scale: 4 * map.getZoom() - 44,
+        scale : 4 * map.getZoom() - 44,
       };
 
       if (typeof (circles[id]) == 'undefined') {
-        circles[id] = new google.maps.Marker({ 
-            icon : icon,
-            position : new google.maps.LatLng(station.latitude, station.longitude)
+        circles[id] = new google.maps.Marker({
+          icon : icon,
+          position : new google.maps.LatLng(station.latitude, station.longitude)
         });
         circles[id].setMap(map);
         (function(station_id) {
-          circles[station_id].addListener('click', function() { handleClick(station_id); });
+          circles[station_id].addListener('click', function() {
+            current.station_id = station_id;
+            handleClick();
+          });
         })(id);
       } else {
         circles[id].setIcon(icon);
@@ -165,7 +174,6 @@ body {
   }
   $(function() {
     google.maps.visualRefresh = true;
-    current.offset = 0;
 
     var mapOptions = {
       center : new google.maps.LatLng(40.720, -73.99),
@@ -175,14 +183,16 @@ body {
     };
 
     map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
-    map.addListener('zoom_changed', function() { render_map(current.offset); });
+    map.addListener('zoom_changed', function() {
+      render_map(current.offset);
+    });
 
-    $.get('/stations').done(function(data) {
+    $.get('./stations').done(function(data) {
       stations = data;
     }).done(function() {
-      $.get('/usage').done(function(data) {
+      $.get('./usage').done(function(data) {
         all_usage = data;
-        for (var i = 0; i < all_usage.times.length; ++i) {
+        for ( var i = 0; i < all_usage.times.length; ++i) {
           all_usage.times[i] = new Date(all_usage.times[i]);
         }
       }).done(function(data) {
@@ -192,10 +202,14 @@ body {
           min : 0,
           max : all_usage.times.length - 1,
           value : all_usage.times.length - 1,
-          slide : function(event, ui) { render_map(ui.value); },
-          change : function(event, ui) { render_map(ui.value); }
+          slide : function(event, ui) {
+            render_map(ui.value);
+          },
+          change : function(event, ui) {
+            render_map(ui.value);
+          }
         });
-        $('#time-slider').children()[0].focus();
+        $('#time-slider > .ui-slider-handle').focus();
       });
     });
   });
@@ -205,19 +219,27 @@ body {
 
 <body>
   <div id='map-table'>
-    <div id='time-slider'></div>
-    <div id='current-time'></div>
+    <div>
+      <b>Current time:</b> 
+      <i><span id='current-time'></span></i>
+      <div id='time-slider' style='width: 100%'></div>
+    </div>
     <div id='map-canvas'></div>
   </div>
   <div id='verbiage'>
     <h1>Citibike Evolution</h1>
-    <p>Use the slider to adjust the time of day, and see how bikes move in and out of neighborhoods! You can use the
-      right and left arrow keys to move back and forth in time.
-    <p>
-      You can see how <a href="javascript:moveSlider('Jul 23 2013 07:00:00')">the morning rush</a> moves people and
-      bikes into the center of Manhattan.
-    <p>
-      Legend: 
+    <h3>Usage</h3>
+    Use the slider to adjust the time of day, and see how bikes move in and out of neighborhoods! You can use the right
+    and left arrow keys to move back and forth in time.
+    <h3>Morning commute</h3>
+    You can see how <a href="javascript:moveSlider('Jul 23 2013 07:00:00')">the morning rush</a> moves people and bikes
+    into the center of Manhattan.
+    <h3>Data</h3>
+    The data is fetched every 10 minutes from the Citibike status page.
+    <h3>Source</h3>
+    Source for the web frontend is on github: <a href='http://github.com/rjpower/citibike-history'>citibike-history</a>.
+    <h3>Legend</h3>
+    Green means lots of bikes, red, not so many.
   </div>
 </body>
 </html>
